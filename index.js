@@ -34,7 +34,7 @@ app.use(passport.initialize());
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: 'http://localhost:5000/api/auth/google/callback',
+    callbackURL: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/auth/google/callback`,
     passReqToCallback: true
     },
     async (req, accessToken, refreshToken, profile, done) => {
@@ -68,7 +68,7 @@ passport.use(new GoogleStrategy({
 passport.use(new GitHubStrategy({
     clientID: process.env.AUTH_GITHUB_CLIENT_ID,
     clientSecret: process.env.AUTH_GITHUB_CLIENT_SECRET,
-    callbackURL: "http://localhost:5000/api/auth/github/callback"
+    callbackURL: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/auth/github/callback`
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
@@ -99,7 +99,7 @@ const PORT=process.env.PORT||5000;
 connectDB();
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({origin: ['http://localhost:5173', 'http://localhost:5174',"https://client-fluxora.vercel.app/"], credentials:true})
+app.use(cors({origin: ['http://localhost:5173', 'http://localhost:5174', 'https://client-fluxora.vercel.app'], credentials:true})
 );
 
 // Ensure uploads folder exists
