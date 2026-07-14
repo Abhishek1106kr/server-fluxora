@@ -1,31 +1,39 @@
 import mongoose from "mongoose";
 
-
 const testimonialSchema = new mongoose.Schema(
   {
-    feedback: {
+    name: {
       type: String,
-      required: [true, "Feedback content is required"],
-      trim: true, 
-    },
-   
-    authorName: {
-      type: String,
+      required: true,
       default: "Anonymous"
     },
-    authorRole:{
-        type:String,
-        trim:true,
-        required:true
-    },
-    companyName: {
+    role: {
       type: String,
+      required: true,
       trim: true
+    },
+    avatar: {
+      type: String,
+      default: ""
+    },
+    content: {
+      type: String,
+      required: [true, "Feedback content is required"],
+      trim: true,
     },
     rating: {
       type: Number,
+      required: true,
       min: 1,
       max: 5
+    },
+    isApproved: {
+      type: Boolean,
+      default: false
+    },
+    featured: {
+      type: Boolean,
+      default: false
     }
   },
   { 
@@ -33,5 +41,5 @@ const testimonialSchema = new mongoose.Schema(
   }
 );
 
-const Testimonial = mongoose.model("Testimonial", testimonialSchema);
+const Testimonial = mongoose.models.Testimonial || mongoose.model("Testimonial", testimonialSchema);
 export default Testimonial;

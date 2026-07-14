@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.git
+.github
+*.log
+.env
+.env.*
+prisma/*.db
+prisma/*.sqlite

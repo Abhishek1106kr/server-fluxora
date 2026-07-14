@@ -11,7 +11,21 @@ const userSchema=new mongoose.Schema({
     isAccountVerified:{type:Boolean,default:false},
     resetOTP:{type:String, default:''},
     resetOTPExpriedAt:{type:Number, default:0},
-    role:{type:String, enum:['developer', 'startup', 'admin'], default:'developer'}
+    role:{type:String, enum:['developer', 'startup', 'admin'], default:'developer'},
+    skills:{type:[String], default:[]},
+    github:{type:String, default:''},
+    rating:{type:Number, default:0},
+    ratingCount:{type:Number, default:0},
+    avatar:{type:String, default:''},
+    companyName:{type:String, default:''},
+    companyOverview:{type:String, default:''},
+    bio:{type:String, default:''},
+    location:{type:String, default:''},
+    linkedin:{type:String, default:''},
+    motivation:{type:String, default:''},
+    resume:{type:String, default:''},
+    resumeText:{type:String, default:''},
+    aspiration:{type:String, default:''}
 })
 
 const userModel=mongoose.models.user||mongoose.model("user",userSchema);

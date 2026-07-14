@@ -1,9 +1,8 @@
-import mongoose, { mongo } from "mongoose";
-import moongoose from "moongoose";
+import mongoose from "mongoose";
 
-const applicationSchema=new moongoose.Schema({
+const applicationSchema=new mongoose.Schema({
     jobId:{type:mongoose.Schema.Types.ObjectId,ref:"Job",required:true},
-    studentId:{type:moongoose.Schema.Types.ObjectId,ref:"User",required:true},
+    studentId:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true},
 
     scores:{
         assessmentScore:{type:Number,default:0},

@@ -18,9 +18,10 @@ const jobSchema = new mongoose.Schema(
     employedId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     }, // Links job to the employer/startup who posted it
     source: { type: String, default: "platform_internal" }, // Identifies platform-posted jobs
+    embedding: { type: [Number], default: undefined }, // 384-dimensional vector embedding
   },
   { timestamps: true } // ← lowercase 's' — Mongoose requires this exact casing
 );
