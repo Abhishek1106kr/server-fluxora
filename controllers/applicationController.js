@@ -1,8 +1,13 @@
 import Application from "../models/Application.Model.js";
 import Job from "../models/job.Model.js";
 import User from "../models/userModel.js";
-import Assessment from "../models/Assessment.Model.js";
+import AssessmentTemplate from "../models/Assessment.Model.js";
 import { GoogleGenAI } from "@google/genai";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient({
+  accelerateUrl: process.env.DATABASE_URL
+});
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -20,18 +25,24 @@ export const processStudentApplication = async (req, res) => {
     }
 
     // --- LAYER 1: Grade Predefined Technical Assessment ---
-    const assessment = await Assessment.findOne({ roleTarget: job.targetRole }).lean();
+    const assessment = await AssessmentTemplate.findOne({ targetRole: job.title }).lean() || await AssessmentTemplate.findOne({ targetRole: job.targetRole }).lean();
     let correctCount = 0;
     
     if (assessment) {
-      assessment.questions.forEach(q => {
-        const studentChoice = studentAnswers.find(ans => ans.questionId === q.questionId);
-        if (studentChoice && Number(studentChoice.chosenIndex) === q.correctOptionIndex) {
+      const questionsList = assessment.questions || [];
+      questionsList.forEach((q, index) => {
+        const studentChoice = (studentAnswers || []).find(ans => 
+          (ans.questionId && q._id && ans.questionId === q._id.toString()) ||
+          (ans.questionText && q.questionText && ans.questionText.trim() === q.questionText.trim()) ||
+          ans.index === index
+        );
+        const correctIndex = q.correctAnswerIndex !== undefined ? q.correctAnswerIndex : q.correctOptionIndex;
+        if (studentChoice && Number(studentChoice.chosenIndex) === correctIndex) {
           correctCount++;
         }
       });
     }
-    const assessmentScore = assessment ? Math.round((correctCount / assessment.questions.length) * 100) : 0;
+    const assessmentScore = (assessment && assessment.questions?.length) ? Math.round((correctCount / assessment.questions.length) * 100) : 0;
 
     // --- LAYER 2: Algorithm-Driven Skill Matching ---
     const requestedSkills = job.requiredSkills || [];
@@ -95,4 +106,43 @@ export const processStudentApplication = async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+};
+
+// GET: Get all applications for jobs posted by this startup
+export const getStartupApplications = async (req, res) => {
+    try {
+        const startupId = req.userId;
+
+        // Find all jobs posted by this startup
+        const jobs = await Job.find({ employedId: startupId }).select("_id");
+        const jobIds = jobs.map(j => j._id);
+
+        const applications = await prisma.application.findMany({
+            where: {
+                mongoJobId: { in: jobIds.map(id => id.toString()) }
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
+        // Fetch student profiles from MongoDB
+        const studentIds = [...new Set(applications.map(a => a.studentId))];
+        const students = await User.find({ _id: { $in: studentIds } }).select("name email skills avatar").lean();
+
+        // Fetch job titles
+        const jobsData = await Job.find({ _id: { $in: jobIds } }).select("title").lean();
+
+        const enriched = applications.map(app => {
+            const student = students.find(s => s._id.toString() === app.studentId);
+            const job = jobsData.find(j => j._id.toString() === app.mongoJobId);
+            return {
+                ...app,
+                student,
+                jobTitle: job ? job.title : "Unknown Job"
+            };
+        });
+
+        res.status(200).json({ success: true, data: enriched });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 };

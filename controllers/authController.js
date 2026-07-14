@@ -81,7 +81,7 @@ export const login=async(req,res)=>{
             sameSite:process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         });
         
-        return res.json({success:true,message:"Login successfully"})
+        return res.json({success:true,message:"Login successfully",token})
 
     } catch (error) {
         console.log(error);

@@ -1,11 +1,8 @@
-import {GoogleGenAI} from '@google/genai';
-import dotenv from 'dotenv';
+import { generateContent } from "./aiProvider.js";
+import dotenv from "dotenv";
 
 dotenv.config();
 
-
-
-const ai=new GoogleGenAI({apiKey:process.env.GEMINI_API_KEY});
 
 /**
  * Orchestrates prompt structure and executes the alignment analysis
@@ -72,17 +69,12 @@ export async function analyzeResumeAlignment(resumeText,targetJob,jobDescription
       }
     `;
 
-    const geminiResponse=await ai.models.generateContent({
-        model:'gemini-2.5-flash',
-        contents:userPrompt,
-        config:{
-            responseMimeType:"application/json",
-            temperature:0.1
-        }
+    const response = await generateContent({
+        contents: userPrompt,
+        responseMimeType: "application/json",
+        temperature: 0.1
     });
-    // In @google/genai v2.x, text is a direct property — not .response.text()
-    const rawText = geminiResponse.text;
-    // Strip any accidental markdown code fences Gemini might wrap around the JSON
+    const rawText = response.text;
     const cleaned = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
     return JSON.parse(cleaned);
 
@@ -91,5 +83,67 @@ export async function analyzeResumeAlignment(resumeText,targetJob,jobDescription
     } catch (error) {
         console.error("AI Service Orchestrtion Failure: ", error);
         throw new Error("Failed to analyze resume");
+    }
+}
+
+export async function executeAiScreening(job, student) {
+    try {
+        const studentSkillsStr = (student.skills || []).join(", ");
+        const jobSkillsStr = (job.tags || []).join(", ");
+
+        const systemPrompt = `You are the elite Technical Screening Engine for Fluxora. Grade the candidate's profile, technical skills, and resume details against the requirements of the job posting "${job.title}" at "${job.company}" requiring the stack [${jobSkillsStr}].
+        
+        Job Description: "${job.description}"
+        Candidate Name: "${student.name}"
+        Candidate Skills: [${studentSkillsStr}]
+        Candidate Resume Details: "${student.resumeText || "No resume uploaded"}"
+        
+        Compute:
+        1. projectComplexityScore (0-100): An overall alignment score of technical skills, experiences, and qualifications. High score if there is direct alignment, low score if major gap.
+        2. alignmentDeductions (0-40): Point deductions based on missing tech stack or years of experience.
+        3. technicalStrengths (Array of 1 to 3 items): Key strengths detected.
+        4. criticalKnowledgeGaps (Array of 1 to 3 items): Technical items missing.
+
+        Output strictly a valid JSON block matching this schema:
+        {
+          "projectComplexityScore": <integer between 0 and 100>,
+          "alignmentDeductions": <integer showing point deductions>,
+          "technicalStrengths": ["strength1", "strength2"],
+          "criticalKnowledgeGaps": ["gap1", "gap2"]
+        }
+        Do not output any introductory or concluding text. Output only raw JSON.`;
+
+        const response = await generateContent({
+            contents: systemPrompt,
+            responseMimeType: "application/json",
+            temperature: 0.2
+        });
+
+        const resultText = response.text?.trim() || "{}";
+        const cleaned = resultText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+        return JSON.parse(cleaned);
+
+    } catch (error) {
+        console.warn("AI Service Screening Execution Failure, falling back to algorithmic matching scorecard: ", error.message);
+        
+        // Algorithmic match fallback
+        const studentSkills = student.skills || [];
+        const requiredSkills = job.tags || [];
+        const matchingCount = requiredSkills.filter(skill => 
+            studentSkills.some(s => s.toLowerCase() === skill.toLowerCase())
+        ).length;
+        const skillRatio = requiredSkills.length > 0 ? (matchingCount / requiredSkills.length) : 1;
+
+        return {
+            projectComplexityScore: Math.round(60 + (skillRatio * 30)),
+            alignmentDeductions: Math.round((1 - skillRatio) * 30),
+            technicalStrengths: [
+                "Strong foundational candidate profile alignment",
+                "Demonstrated matching competency in key stack items"
+            ],
+            criticalKnowledgeGaps: requiredSkills.length > matchingCount
+                ? ["Deepen familiarity with: " + requiredSkills.filter(s => !studentSkills.some(x => x.toLowerCase() === s.toLowerCase())).join(", ")]
+                : ["Advanced workflow tuning and optimization metrics"]
+        };
     }
 }

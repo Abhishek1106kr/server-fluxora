@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ProjectState {
+  id                   String   @id @default(uuid())
+  mongoJobId           String   @unique
+  studentId            String?  
+  lifecycleStatus      String   @default("DISCOVERY") // DISCOVERY, ACTIVE_WORK, COMPLETED
+  currentMilestone     Int      @default(0)
+  lastWebhookTimestamp DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  milestones           Milestone[]
+
+  @@index([mongoJobId])
+  @@index([lifecycleStatus])
+}
+
+
+model Application {
+  id              String   @id @default(uuid())
+  mongoJobId      String
+  studentId       String   // Matches the MongoDB User ID
+  aiScore         Int      @default(0)
+  aiFeedback      Json?    // Stores the Gemini strengths/gaps output
+  status          String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt       DateTime @default(now())
+
+  // A student can only apply to a specific job once
+  @@unique([mongoJobId, studentId]) 
+}
+
+model Milestone {
+  id              String       @id @default(uuid())
+  projectStateId  String
+  projectState    ProjectState @relation(fields: [projectStateId], references: [id])
+  title           String
+  description     String
+  prNumber        Int?         // The GitHub PR linked to this milestone
+  status          String       @default("PENDING") // PENDING, PR_OPEN, UNDER_REVIEW, MERGED, REJECTED
+  feedback        String?      // Startup feedback if REJECTED
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
